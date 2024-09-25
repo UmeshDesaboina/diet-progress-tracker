@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umesh - Diet Progress Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="number"], select, button, input[type="date"], input[type="checkbox"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .meal-list {
+            margin-top: 20px;
+        }
+
+        .meal-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .meal-list li {
+            background-color: #e9ecef;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .meal-list li span {
+            font-weight: bold;
+        }
+
+        .meal-list button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            margin-right: 5px;
+        }
+
+        .meal-list button:hover {
+            background-color: #c82333;
+        }
+
+        .calendar, .report {
+            margin-top: 20px;
+        }
+
+        .checkout-button, .report-button {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .greeting {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+                margin: 10px;
+            }
+
+            input[type="number"], select, button, input[type="date"], input[type="checkbox"] {
+                font-size: 14px;
+                padding: 6px;
+            }
+
+            button {
+                font-size: 14px;
+            }
+
+            .meal-list li {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="greeting" id="greeting"></div>
+        <h1>Umesh - Diet Progress Tracker</h1>
+
+        <form id="mealForm">
+            <label for="mealType">Type of Meal:</label>
+            <select id="mealType" required>
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+            </select>
+
+            <label for="foodWeight">Weight of Food (grams):</label>
+            <input type="number" id="foodWeight" required>
+
+            <label for="mealDate">Date of Meal:</label>
+            <input type="date" id="mealDate" required>
+
+            <label>Homemade?</label>
+            <input type="radio" name="homemade" value="yes" checked> Yes
+            <input type="radio" name="homemade" value="no"> No
+
+            <label for="dietCompliant">Diet Compliant (No Oily or Outside Food)?</label>
+            <input type="checkbox" id="dietCompliant" checked>
+
+            <label>Tick if consumed on this date:</label>
+            <input type="checkbox" id="tickDate">
+
+            <button type="submit">Log Meal</button>
+        </form>
+
+        <h2>Logged Meals</h2>
+        <div class="meal-list">
+            <ul id="mealLog"></ul>
+        </div>
+
+        <h2>Meal Calendar</h2>
+        <div class="calendar">
+            <label for="calendarDate">Select Date to Checkout Meals:</label>
+            <input type="date" id="calendarDate">
+            <div class="checkout-button">
+                <button id="checkoutButton">Checkout</button>
+            </div>
+        </div>
+
+        <h2>Meals for Selected Date</h2>
+        <div class="meal-list">
+            <ul id="checkoutLog"></ul>
+        </div>
+
+        <h2>Download Reports</h2>
+        <div class="report">
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate">
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate">
+            <label><input type="checkbox" id="filterHomemade"> Homemade Only</label>
+            <label><input type="checkbox" id="filterOilFree"> Oil-Free Only</label>
+            <div class="report-button">
+                <button id="fullReportButton">Download Full Report</button>
+                <button id="filteredReportButton">Download Filtered Report</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const meals = [];
+
+        function displayGreeting() {
+            const greetingElement = document.getElementById('greeting');
+            const currentHour = new Date().getHours();
+
+            if (currentHour < 12) {
+                greetingElement.textContent = 'Good Morning!';
+            } else if (currentHour < 18) {
+                greetingElement.textContent = 'Good Afternoon!';
+            } else {
+                greetingElement.textContent = 'Good Evening!';
+            }
+        }
+
+        function displayMeal(meal, index) {
+            const mealLog = document.getElementById('mealLog');
+            const newMeal = document.createElement('li');
+            newMeal.innerHTML = `<span>Meal:</span> ${meal.type}, <span>Weight:</span> ${meal.weight}g, <span>Date:</span> ${meal.date}, <span>Homemade:</span> ${meal.homemade}, <span>Diet Compliant:</span> ${meal.compliant ? 'Yes' : 'No'}, <span>Ticked:</span> ${meal.ticked ? 'Yes' : 'No'} 
+                                  <button onclick="editMeal(${index})">Edit</button>
+                                  <button onclick="deleteMeal(${index})">Delete</button>`;
+            mealLog.appendChild(newMeal);
+        }
+
+        function editMeal(index) {
+            const meal = meals[index];
+            document.getElementById('mealType').value = meal.type;
+            document.getElementById('foodWeight').value = meal.weight;
+            document.getElementById('mealDate').value = meal.date;
+            document.querySelector(`input[name="homemade"][value="${meal.homemade}"]`).checked = true;
+            document.getElementById('dietCompliant').checked = meal.compliant;
+            document.getElementById('tickDate').checked = meal.ticked;
+            document.getElementById('mealForm').dataset.editIndex = index;
+        }
+
+        function deleteMeal(index) {
+            meals.splice(index, 1);
+            updateMealLog();
+        }
+
+        function updateMealLog() {
+            const mealLog = document.getElementById('mealLog');
+            mealLog.innerHTML = '';
+            meals.forEach((meal, index) => displayMeal(meal, index));
+        }
+
+        function checkMealLog() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const cutOffHour = 21; // 9 PM in 24-hour format
+            if (now.getHours() >= cutOffHour && !meals.some(meal => meal.date === today)) {
+                if (Notification.permission === "granted") {
+                    new Notification("Reminder", { body: "You haven't logged any meals today!" });
+                } else if (Notification.permission !== "denied") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            new Notification("Reminder", { body: "You haven't logged any meals today!" });
+                        }
+                    });
+                }
+            }
+        }
+
+        function downloadCSV(mealsToDownload, fileName) {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Meal Type,Weight (grams),Homemade,Diet Compliant,Date\n";
+
+            mealsToDownload.forEach(meal => {
+                csvContent += `${meal.type},${meal.weight},${meal.homemade},${meal.compliant ? 'Yes' : 'No'},${meal.date}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function generateFullReport() {
+            downloadCSV(meals, "full_diet_report.csv");
+        }
+
+        function generateFilteredReport() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const filterHomemade = document.getElementById('filterHomemade').checked;
+            const filterOilFree = document.getElementById('filterOilFree').checked;
+
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates.');
+                return;
+            }
+
+            let filteredMeals = meals.filter(meal => meal.date >= startDate && meal.date <= endDate);
+
+            if (filterHomemade) {
+                filteredMeals = filteredMeals.filter(meal => meal.homemade === 'yes');
+            }
+
+            if (filterOilFree) {
+                filteredMeals = filteredMeals.filter(meal => meal.compliant);
+            }
+
+            downloadCSV(filteredMeals, "filtered_diet_report.csv");
+        }
+
+        document.getElementById('mealForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const index = document.getElementById('mealForm').dataset.editIndex;
+            const meal = {
+                type: document.getElementById('mealType').value,
+                weight: document.getElementById('foodWeight').value,
+                date: document.getElementById('mealDate').value,
+                homemade: document.querySelector('input[name="homemade"]:checked').value,
+                compliant: document.getElementById('dietCompliant').checked,
+                ticked: document.getElementById('tickDate').checked
+            };
+
+            if (index !== undefined) {
+                meals[index] = meal;
+                delete document.getElementById('mealForm').dataset.editIndex;
+            } else {
+                meals.push(meal);
+            }
+
+            updateMealLog();
+            this.reset();
+        });
+
+        document.getElementById('checkoutButton').addEventListener('click', function () {
+            const selectedDate = document.getElementById('calendarDate').value;
+            if (!selectedDate) {
+                alert('Please select a date.');
+                return;
+            }
+
+            const checkoutLog = document.getElementById('checkoutLog');
+            checkoutLog.innerHTML = ''; // Clear previous entries
+
+            const mealsOnDate = meals.filter(meal => meal.date === selectedDate);
+
+            if (mealsOnDate.length === 0) {
+                const noMeals = document.createElement('li');
+                noMeals.textContent = 'No meals logged for this date.';
+                checkoutLog.appendChild(noMeals);
+            } else {
+                mealsOnDate.forEach(meal => {
+                    const mealEntry = document.createElement('li');
+                    mealEntry.textContent = `Meal: ${meal.type}, Weight: ${meal.weight}g, Date: ${meal.date}, Homemade: ${meal.homemade}, Diet Compliant: ${meal.compliant ? 'Yes' : 'No'}, Ticked: ${meal.ticked ? 'Yes' : 'No'}`;
+                    checkoutLog.appendChild(mealEntry);
+                });
+            }
+        });
+
+        document.getElementById('fullReportButton').addEventListener('click', generateFullReport);
+        document.getElementById('filteredReportButton').addEventListener('click', generateFilteredReport);
+
+        // Check for meal log and notifications periodically
+        setInterval(checkMealLog, 60000); // Check every minute
+
+        displayGreeting();
+    </script>
+</body>
+</html>
